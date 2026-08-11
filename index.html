@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- cutout 在线抠图 · 版本 v1.1.1 · 更新：页首版本标注 + tar 打包部署 -->
+<!-- cutout 在线抠图 · 版本 v1.1.2 · 更新：进度条等宽按钮 + 箭头跟随移动提示 -->
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8" />
@@ -50,10 +50,12 @@ body {
 .btn--primary:hover:not(:disabled) { background: var(--primary-d); }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
 #cutBtn { width: 100%; margin-top: 4px; }
-.progress { margin-top: 16px; display: flex; align-items: center; gap: 12px; }
-.progress__track { flex: 1; height: 8px; background: #eef0f3; border-radius: 99px; overflow: hidden; }
+.progress { margin-top: 16px; position: relative; padding-bottom: 40px; }
+.progress__track { width: 100%; height: 8px; background: #eef0f3; border-radius: 99px; overflow: hidden; }
 .progress__bar { height: 100%; width: 0%; background: var(--primary); transition: width .2s; }
-.progress__text { font-size: 13px; color: var(--muted); white-space: nowrap; min-width: 88px; text-align: right; }
+.progress__cursor { position: absolute; top: 14px; left: 0%; transform: translateX(-50%); transition: left .2s; display: flex; flex-direction: column; align-items: center; pointer-events: none; will-change: left; }
+.progress__arrow { width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 7px solid var(--primary); }
+.progress__text { margin-top: 3px; font-size: 13px; color: var(--muted); white-space: nowrap; }
 .result { margin-top: 24px; text-align: center; }
 .result__stage {
   background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; display: inline-block; max-width: 100%;
@@ -102,7 +104,10 @@ body {
     <button id="cutBtn" class="btn btn--primary" type="button" disabled>开始抠图</button>
     <div class="progress" id="progress" hidden>
       <div class="progress__track"><div id="progressBar" class="progress__bar"></div></div>
-      <span id="progressText" class="progress__text">准备中…</span>
+      <div class="progress__cursor" id="progressCursor">
+        <div class="progress__arrow"></div>
+        <span id="progressText" class="progress__text">准备中…</span>
+      </div>
     </div>
   </section>
   <section class="result" id="result" hidden>
@@ -115,7 +120,7 @@ body {
 import { removeBackground } from 'https://esm.sh/@imgly/background-removal@1.7.0';
 
 // 版本号：每次更新代码时递增，方便确认线上是否生效
-const VERSION = '1.1.1';
+const VERSION = '1.1.2';
 
 const els = {
   dropzone: document.getElementById('dropzone'),
@@ -123,6 +128,7 @@ const els = {
   cutBtn: document.getElementById('cutBtn'),
   progress: document.getElementById('progress'),
   progressBar: document.getElementById('progressBar'),
+  progressCursor: document.getElementById('progressCursor'),
   progressText: document.getElementById('progressText'),
   result: document.getElementById('result'),
   resultImg: document.getElementById('resultImg'),
@@ -231,6 +237,7 @@ async function runCutout() {
   els.cutBtn.disabled = true;
   els.progress.hidden = false;
   els.progressBar.style.width = '0%';
+  els.progressCursor.style.left = '0%';
   els.progressText.textContent = '正在准备模型…';
   // 累计已下载的各模型资源字节，合并为一条连续进度条
   const track = { files: new Map(), order: [], prevPct: 0 };
@@ -249,9 +256,12 @@ async function runCutout() {
         // 取 max 保证进度条只增不减，钳到 99% 直到真正完成再置 100%
         const pct = Math.min(99, Math.max(track.prevPct, bytePct));
         track.prevPct = pct;
+        const shown = Math.round(pct);
         els.progressBar.style.width = pct + '%';
+        // 箭头与提示文案跟随进度移动（钳在 6%~94% 避免文字溢出边界）
+        els.progressCursor.style.left = Math.max(6, Math.min(94, shown)) + '%';
         const idx = track.order.indexOf(key) + 1;
-        els.progressText.textContent = `下载模型第 ${idx} 个文件 · ${Math.round(pct)}%`;
+        els.progressText.textContent = `下载模型第 ${idx} 个文件 · ${shown}%`;
       },
     });
     els.progressBar.style.width = '100%';
