@@ -1,5 +1,5 @@
 // 版本号：每次更新代码时递增，方便确认线上是否生效
-const VERSION = '1.3.2';
+const VERSION = '1.3.3';
 
 const els = {
   dropzone: document.getElementById('dropzone'),
@@ -236,7 +236,7 @@ async function runMediaPipe() {
       for (let x = 0; x < canvas.width; x++) {
         const mx = (x * mask.width / canvas.width) | 0;
         const my = (y * mask.height / canvas.height) | 0;
-        const isFg = maskData[my * mask.width + mx] > 0; // 前景（人像）= 1
+        const isFg = maskData[my * mask.width + mx] === 0; // 类别掩码：0=人像(前景)，其余为背景
         if (isFg) fgCount++;
         out.data[(y * canvas.width + x) * 4 + 3] = isFg ? 255 : 0;
       }
