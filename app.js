@@ -1,5 +1,5 @@
 // 版本号：每次更新代码时递增，方便确认线上是否生效
-const VERSION = '1.3.3';
+const VERSION = '1.3.4';
 
 const els = {
   dropzone: document.getElementById('dropzone'),
@@ -191,7 +191,7 @@ async function getSegmenter() {
     },
     runningMode: 'IMAGE',
     outputCategoryMask: true,
-    outputConfidenceMasks: false,
+    outputConfidenceMasks: true,
   };
   try {
     mpSegmenter = await ImageSegmenter.createFromOptions(resolver, opts);
@@ -222,27 +222,44 @@ async function runMediaPipe() {
     els.progressText.textContent = '正在抠图…';
     const img = state.image;
     const res = seg.segment(img); // IMAGE 模式：同步返回
-    const mask = res.categoryMask; // MPMask：width / height + getAsUint8Array()
-    if (!mask) throw new Error('人像分割未返回掩码，请改用通用模式或重试');
-    const maskData = mask.getAsUint8Array(); // Uint8Array：0=背景 1=前景
+    const catMask = res.categoryMask; // MPMask：每像素类别索引（本环境 0=人像）
+    if (!catMask) throw new Error('人像分割未返回掩码，请改用通用模式或重试');
+    const confMasks = res.confidenceMasks; // MPMask[]：每类一张置信度图(0~1)，用于软边缘
+    if (!confMasks || confMasks.length === 0) throw new Error('人像分割未返回置信度，请改用通用模式或重试');
+    const catData = catMask.getAsUint8Array();
+    const confFg = confMasks[0].getAsFloat32Array(); // 类别0(人像)置信度 → 软 alpha
     const canvas = document.createElement('canvas');
     canvas.width = img.naturalWidth || img.width;
     canvas.height = img.naturalHeight || img.height;
     const ctx = canvas.getContext('2d');
     ctx.drawImage(img, 0, 0);
     const out = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    let fgCount = 0;
+    // 第一遍：统计人像/背景区域的平均置信度，自适应判断 confMasks[0] 的方向（避免再次抠反）
+    let sumFg = 0, nFg = 0, sumBg = 0, nBg = 0;
     for (let y = 0; y < canvas.height; y++) {
       for (let x = 0; x < canvas.width; x++) {
-        const mx = (x * mask.width / canvas.width) | 0;
-        const my = (y * mask.height / canvas.height) | 0;
-        const isFg = maskData[my * mask.width + mx] === 0; // 类别掩码：0=人像(前景)，其余为背景
-        if (isFg) fgCount++;
-        out.data[(y * canvas.width + x) * 4 + 3] = isFg ? 255 : 0;
+        const mx = (x * catMask.width / canvas.width) | 0;
+        const my = (y * catMask.height / canvas.height) | 0;
+        const idx = my * catMask.width + mx;
+        if (catData[idx] === 0) { sumFg += confFg[idx]; nFg++; } else { sumBg += confFg[idx]; nBg++; }
       }
     }
-    if (fgCount === 0) {
+    if (nFg === 0) {
       throw new Error('未检测到人像，请换一张含人物主体的照片，或改用「通用抠图」');
+    }
+    const fgMean = sumFg / nFg;
+    const bgMean = nBg ? sumBg / nBg : 1;
+    const invert = fgMean < bgMean; // 人像区平均置信度反而更低 → 置信度方向需翻转
+    // 第二遍：写入软 alpha（置信度 0~1 → 0~255，边缘自然渐变）
+    for (let y = 0; y < canvas.height; y++) {
+      for (let x = 0; x < canvas.width; x++) {
+        const mx = (x * catMask.width / canvas.width) | 0;
+        const my = (y * catMask.height / canvas.height) | 0;
+        const idx = my * catMask.width + mx;
+        const c = confFg[idx];
+        const a = invert ? 1 - c : c;
+        out.data[(y * canvas.width + x) * 4 + 3] = Math.max(0, Math.min(255, Math.round(a * 255)));
+      }
     }
     ctx.putImageData(out, 0, 0);
     els.progressBar.style.width = '90%';
