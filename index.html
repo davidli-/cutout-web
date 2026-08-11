@@ -1,4 +1,5 @@
 <!doctype html>
+<!-- cutout 在线抠图 · 版本 v1.1.1 · 更新：页首版本标注 + tar 打包部署 -->
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8" />
@@ -108,10 +109,13 @@ body {
     <div class="result__stage"><img id="resultImg" alt="抠图结果" /></div>
     <div class="result__actions"><a id="downloadBtn" class="btn btn--primary" download="cutout.png">下载 PNG</a></div>
   </section>
-  <footer class="app__footer"><p>图片全程在浏览器本地处理，不会上传到任何服务器。</p></footer>
+  <footer class="app__footer"><p>图片全程在浏览器本地处理，不会上传到任何服务器。</p><p id="ver"></p></footer>
 </main>
 <script type="module">
 import { removeBackground } from 'https://esm.sh/@imgly/background-removal@1.7.0';
+
+// 版本号：每次更新代码时递增，方便确认线上是否生效
+const VERSION = '1.1.1';
 
 const els = {
   dropzone: document.getElementById('dropzone'),
@@ -128,6 +132,9 @@ const els = {
 };
 
 const state = { image: null, objectUrl: null, mode: 'general', bg: 'transparent', lastBlob: null, busy: false };
+
+// 在页脚显示版本号
+document.getElementById('ver').textContent = '版本 ' + VERSION;
 
 function loadImage(src) {
   return new Promise((resolve, reject) => {
@@ -224,21 +231,31 @@ async function runCutout() {
   els.cutBtn.disabled = true;
   els.progress.hidden = false;
   els.progressBar.style.width = '0%';
-  els.progressText.textContent = '正在加载模型…';
+  els.progressText.textContent = '正在准备模型…';
+  // 累计已下载的各模型资源字节，合并为一条连续进度条
+  const track = { files: new Map(), order: [], prevPct: 0 };
   try {
     const blob = await removeBackground(state.objectUrl, {
       model: state.mode === 'portrait' ? 'isnet_fp16' : 'isnet',
       output: { format: 'image/png' },
       progress: (key, current, total) => {
-        if (total) {
-          const pct = Math.min(100, Math.round((current / total) * 100));
-          els.progressBar.style.width = pct + '%';
-          els.progressText.textContent = `处理中 ${pct}%`;
-        } else {
-          els.progressText.textContent = '正在加载模型…';
-        }
+        if (!total) { els.progressText.textContent = '正在准备模型…'; return; }
+        if (!track.files.has(key)) { track.files.set(key, { current: 0, total: 0 }); track.order.push(key); }
+        const rec = track.files.get(key);
+        rec.current = current; rec.total = total;
+        let done = 0, all = 0;
+        for (const r of track.files.values()) { done += Math.min(r.current, r.total); all += r.total; }
+        const bytePct = all ? (done / all) * 100 : 0;
+        // 取 max 保证进度条只增不减，钳到 99% 直到真正完成再置 100%
+        const pct = Math.min(99, Math.max(track.prevPct, bytePct));
+        track.prevPct = pct;
+        els.progressBar.style.width = pct + '%';
+        const idx = track.order.indexOf(key) + 1;
+        els.progressText.textContent = `下载模型第 ${idx} 个文件 · ${Math.round(pct)}%`;
       },
     });
+    els.progressBar.style.width = '100%';
+    els.progressText.textContent = '处理完成';
     state.lastBlob = blob;
     await reComposite(blob);
   } catch (e) {
