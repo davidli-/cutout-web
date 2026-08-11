@@ -1,7 +1,5 @@
-import { removeBackground } from 'https://esm.sh/@imgly/background-removal@1.7.0';
-
 // 版本号：每次更新代码时递增，方便确认线上是否生效
-const VERSION = '1.2.0';
+const VERSION = '1.3.0';
 
 const els = {
   dropzone: document.getElementById('dropzone'),
@@ -115,23 +113,29 @@ async function reComposite(blob) {
 let idleTimer = null;
 function clearIdle() { if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; } }
 
+// 分派：通用走 @imgly，人像走 MediaPipe（两个库均按需动态加载）
 async function runCutout() {
   if (!state.image || state.busy) return;
+  if (state.mode === 'portrait') await runMediaPipe();
+  else await runImgly();
+}
+
+// 通用抠图：@imgly/background-removal（ONNX Runtime Web + WASM），首次使用时才拉取
+async function runImgly() {
   state.busy = true;
   els.cutBtn.disabled = true;
   els.progress.hidden = false;
   els.progressBar.style.width = '0%';
   els.progressArrow.style.left = '0%';
   els.progressText.textContent = '正在准备模型…';
-  // 累计已下载的各模型资源字节，合并为一条连续进度条
   const track = { files: new Map(), order: [], prevPct: 0 };
   let sawProgress = false;
-  // 若长时间无下载进度事件（模型已缓存、正在 CPU 推理），提示“正在抠图…”，避免看起来卡住
   clearIdle();
   idleTimer = setTimeout(() => { if (!sawProgress) els.progressText.textContent = '正在抠图…'; }, 2000);
   try {
+    const { removeBackground } = await import('https://esm.sh/@imgly/background-removal@1.7.0');
     const blob = await removeBackground(state.objectUrl, {
-      model: state.mode === 'portrait' ? 'isnet_fp16' : 'isnet',
+      model: 'isnet',
       output: { format: 'image/png' },
       progress: (key, current, total) => {
         if (!total) return; // 准备阶段，保持当前文案
@@ -143,18 +147,94 @@ async function runCutout() {
         let done = 0, all = 0;
         for (const r of track.files.values()) { done += Math.min(r.current, r.total); all += r.total; }
         const bytePct = all ? (done / all) * 100 : 0;
-        // 取 max 保证进度条只增不减，钳到 99% 直到真正完成再置 100%
         const pct = Math.min(99, Math.max(track.prevPct, bytePct));
         track.prevPct = pct;
         const shown = Math.round(pct);
         els.progressBar.style.width = pct + '%';
-        // 箭头随真实进度移动，钳在 3%~97% 保证不超出进度条左右边界
         els.progressArrow.style.left = Math.max(3, Math.min(97, shown)) + '%';
         const idx = track.order.indexOf(key) + 1;
         els.progressText.textContent = shown >= 99 ? '正在抠图…' : `下载模型第 ${idx} 个文件 · ${shown}%`;
       },
     });
     clearIdle();
+    els.progressBar.style.width = '100%';
+    els.progressArrow.style.left = '100%';
+    els.progressText.textContent = '处理完成';
+    state.lastBlob = blob;
+    await reComposite(blob);
+  } catch (e) {
+    clearIdle();
+    alert('抠图失败：' + (e && e.message ? e.message : e));
+  } finally {
+    clearIdle();
+    state.busy = false;
+    els.cutBtn.disabled = false;
+    els.progress.hidden = true;
+  }
+}
+
+// 人像抠图：MediaPipe Selfie Segmentation（轻量、头发边缘干净），首次使用时才加载
+let mpSegmenter = null;
+async function getSegmenter() {
+  if (mpSegmenter) return mpSegmenter;
+  const { ImageSegmenter, FilesetResolver } = await import(
+    'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/+esm'
+  );
+  const resolver = await FilesetResolver.forVisionTasks(
+    'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/wasm'
+  );
+  const opts = {
+    baseOptions: {
+      modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite',
+      delegate: 'GPU',
+    },
+    runningMode: 'IMAGE',
+    outputCategoryMask: true,
+    outputConfidenceMasks: false,
+  };
+  try {
+    mpSegmenter = await ImageSegmenter.createFromOptions(resolver, opts);
+  } catch (e) {
+    // 老设备 / Safari 不支持 GPU delegate 时降级到 CPU
+    opts.baseOptions.delegate = 'CPU';
+    mpSegmenter = await ImageSegmenter.createFromOptions(resolver, opts);
+  }
+  return mpSegmenter;
+}
+
+async function runMediaPipe() {
+  state.busy = true;
+  els.cutBtn.disabled = true;
+  els.progress.hidden = false;
+  els.progressBar.style.width = '0%';
+  els.progressArrow.style.left = '0%';
+  els.progressText.textContent = '正在加载人像模型…';
+  let sawProgress = false;
+  clearIdle();
+  idleTimer = setTimeout(() => { if (!sawProgress) els.progressText.textContent = '正在抠图…'; }, 2000);
+  try {
+    const seg = await getSegmenter();
+    sawProgress = true;
+    clearIdle();
+    els.progressText.textContent = '正在抠图…';
+    const img = state.image;
+    const res = seg.segment(img, performance.now()); // IMAGE 模式同步返回
+    const mask = res.categoryMask; // {width, height, data: Uint8Array} 1=前景 0=背景
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth || img.width;
+    canvas.height = img.naturalHeight || img.height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const out = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    for (let y = 0; y < canvas.height; y++) {
+      for (let x = 0; x < canvas.width; x++) {
+        const mx = (x * mask.width / canvas.width) | 0;
+        const my = (y * mask.height / canvas.height) | 0;
+        out.data[(y * canvas.width + x) * 4 + 3] = mask.data[my * mask.width + mx] === 1 ? 255 : 0;
+      }
+    }
+    ctx.putImageData(out, 0, 0);
+    const blob = await new Promise((r) => canvas.toBlob(r, 'image/png'));
     els.progressBar.style.width = '100%';
     els.progressArrow.style.left = '100%';
     els.progressText.textContent = '处理完成';
