@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>在线抠图 · 通用 / 人像</title>
+<style>
+:root {
+  --bg: #f5f6f8; --card: #ffffff; --text: #1f2329; --muted: #8a9099;
+  --primary: #2b6cff; --primary-d: #1f57d6; --border: #e6e8eb; --radius: 14px;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  background: var(--bg); color: var(--text); line-height: 1.6;
+}
+.app { max-width: 760px; margin: 0 auto; padding: 32px 16px 48px; }
+.app__header { text-align: center; margin-bottom: 24px; }
+.app__header h1 { font-size: 28px; margin: 0 0 6px; }
+.app__sub { color: var(--muted); margin: 0; font-size: 14px; }
+.panel { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); }
+.dropzone { border: 2px dashed var(--border); border-radius: var(--radius); padding: 40px 20px; text-align: center; cursor: pointer; transition: border-color .2s, background .2s; outline: none; }
+.dropzone:hover, .dropzone:focus-visible { border-color: var(--primary); background: #f7faff; }
+.dropzone.is-drag { border-color: var(--primary); background: #eef3ff; }
+.dropzone.is-loaded { border-style: solid; border-color: #cfe0ff; }
+.dropzone__title { font-size: 16px; margin: 0 0 6px; font-weight: 600; }
+.dropzone__hint { font-size: 13px; color: var(--muted); margin: 0; }
+.options { display: flex; flex-wrap: wrap; gap: 20px; margin: 20px 0; }
+.options__group { display: flex; align-items: center; gap: 12px; }
+.options__label { font-size: 14px; color: var(--muted); }
+.seg { display: inline-flex; background: #f0f2f5; border-radius: 10px; padding: 3px; }
+.seg__btn { border: none; background: transparent; padding: 7px 16px; border-radius: 8px; cursor: pointer; font-size: 14px; color: var(--text); transition: background .2s, color .2s; }
+.seg__btn.is-active { background: #fff; color: var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,.08); font-weight: 600; }
+.swatches { display: inline-flex; gap: 8px; }
+.swatch { width: 40px; height: 32px; border-radius: 8px; border: 2px solid var(--border); cursor: pointer; font-size: 12px; color: #333; background: #fff; display: inline-flex; align-items: center; justify-content: center; transition: border-color .2s, transform .1s; }
+.swatch:hover { transform: translateY(-1px); }
+.swatch.is-active { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(43,108,255,.2); }
+.swatch[data-bg="#ffffff"] { background: #fff; }
+.swatch[data-bg="#ff0000"] { background: #ff0000; color: #fff; }
+.swatch[data-bg="#cccccc"] { background: #ccc; }
+.swatch[data-bg="#438edb"] { background: #438edb; color: #fff; }
+.swatch[data-bg="transparent"] {
+  background-image: linear-gradient(45deg,#ddd 25%,transparent 25%),linear-gradient(-45deg,#ddd 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#ddd 75%),linear-gradient(-45deg,transparent 75%,#ddd 75%);
+  background-size: 10px 10px; background-position: 0 0,0 5px,5px -5px,-5px 0; background-color: #fff;
+}
+.btn { display: inline-block; text-align: center; cursor: pointer; border: none; border-radius: 10px; padding: 11px 22px; font-size: 15px; text-decoration: none; transition: background .2s, opacity .2s; }
+.btn--primary { background: var(--primary); color: #fff; font-weight: 600; }
+.btn--primary:hover:not(:disabled) { background: var(--primary-d); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+#cutBtn { width: 100%; margin-top: 4px; }
+.progress { margin-top: 16px; display: flex; align-items: center; gap: 12px; }
+.progress__track { flex: 1; height: 8px; background: #eef0f3; border-radius: 99px; overflow: hidden; }
+.progress__bar { height: 100%; width: 0%; background: var(--primary); transition: width .2s; }
+.progress__text { font-size: 13px; color: var(--muted); white-space: nowrap; min-width: 88px; text-align: right; }
+.result { margin-top: 24px; text-align: center; }
+.result__stage {
+  background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; display: inline-block; max-width: 100%;
+  background-image: linear-gradient(45deg,#eee 25%,transparent 25%),linear-gradient(-45deg,#eee 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#eee 75%),linear-gradient(-45deg,transparent 75%,#eee 75%);
+  background-size: 16px 16px; background-position: 0 0,0 8px,8px -8px,-8px 0;
+}
+.result__stage img { max-width: 100%; max-height: 60vh; display: block; border-radius: 6px; }
+.result__actions { margin-top: 16px; }
+.app__footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 28px; }
+.app__footer p { margin: 0; }
+</style>
+</head>
+<body>
+<main class="app">
+  <header class="app__header">
+    <h1>在线抠图</h1>
+    <p class="app__sub">纯前端 AI 抠图 · 通用 / 人像 · 支持换背景与下载</p>
+  </header>
+  <section class="panel">
+    <div id="dropzone" class="dropzone" tabindex="0">
+      <input id="fileInput" type="file" accept="image/*" hidden />
+      <div class="dropzone__inner">
+        <p class="dropzone__title">拖拽图片到此处，或点击选择</p>
+        <p class="dropzone__hint">也支持 Ctrl / ⌘ + V 直接粘贴截图</p>
+      </div>
+    </div>
+    <div class="options">
+      <div class="options__group">
+        <span class="options__label">模式</span>
+        <div class="seg" role="radiogroup" aria-label="抠图模式">
+          <button type="button" class="seg__btn is-active" data-mode="general">通用抠图</button>
+          <button type="button" class="seg__btn" data-mode="portrait">人像抠图</button>
+        </div>
+      </div>
+      <div class="options__group">
+        <span class="options__label">背景</span>
+        <div class="swatches" role="radiogroup" aria-label="背景颜色">
+          <button type="button" class="swatch is-active" data-bg="transparent" title="透明">透明</button>
+          <button type="button" class="swatch" data-bg="#ffffff" style="--c:#ffffff" title="白色">白</button>
+          <button type="button" class="swatch" data-bg="#ff0000" style="--c:#ff0000" title="红色">红</button>
+          <button type="button" class="swatch" data-bg="#cccccc" style="--c:#cccccc" title="灰色">灰</button>
+          <button type="button" class="swatch" data-bg="#438edb" style="--c:#438edb" title="蓝色">蓝</button>
+        </div>
+      </div>
+    </div>
+    <button id="cutBtn" class="btn btn--primary" type="button" disabled>开始抠图</button>
+    <div class="progress" id="progress" hidden>
+      <div class="progress__track"><div id="progressBar" class="progress__bar"></div></div>
+      <span id="progressText" class="progress__text">准备中…</span>
+    </div>
+  </section>
+  <section class="result" id="result" hidden>
+    <div class="result__stage"><img id="resultImg" alt="抠图结果" /></div>
+    <div class="result__actions"><a id="downloadBtn" class="btn btn--primary" download="cutout.png">下载 PNG</a></div>
+  </section>
+  <footer class="app__footer"><p>图片全程在浏览器本地处理，不会上传到任何服务器。</p></footer>
+</main>
+<script type="module">
+import { removeBackground } from 'https://esm.sh/@imgly/background-removal@1.7.0';
+
+const els = {
+  dropzone: document.getElementById('dropzone'),
+  fileInput: document.getElementById('fileInput'),
+  cutBtn: document.getElementById('cutBtn'),
+  progress: document.getElementById('progress'),
+  progressBar: document.getElementById('progressBar'),
+  progressText: document.getElementById('progressText'),
+  result: document.getElementById('result'),
+  resultImg: document.getElementById('resultImg'),
+  downloadBtn: document.getElementById('downloadBtn'),
+  modeBtns: document.querySelectorAll('.seg__btn'),
+  swatchBtns: document.querySelectorAll('.swatch'),
+};
+
+const state = { image: null, objectUrl: null, mode: 'general', bg: 'transparent', lastBlob: null, busy: false };
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('图片加载失败'));
+    img.src = src;
+  });
+}
+
+async function handleFile(file) {
+  if (!file || !file.type.startsWith('image/')) { alert('请选择图片文件'); return; }
+  if (state.objectUrl) URL.revokeObjectURL(state.objectUrl);
+  state.objectUrl = URL.createObjectURL(file);
+  try {
+    state.image = await loadImage(state.objectUrl);
+    els.dropzone.classList.add('is-loaded');
+    els.dropzone.querySelector('.dropzone__title').textContent = '已选择：' + file.name;
+    els.cutBtn.disabled = false;
+    hideResult();
+  } catch (e) { alert(e.message); }
+}
+
+function hideResult() { els.result.hidden = true; }
+
+els.dropzone.addEventListener('click', () => els.fileInput.click());
+els.dropzone.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); els.fileInput.click(); }
+});
+els.fileInput.addEventListener('change', (e) => {
+  const f = e.target.files && e.target.files[0];
+  if (f) handleFile(f);
+});
+['dragenter','dragover'].forEach((ev) => els.dropzone.addEventListener(ev, (e) => {
+  e.preventDefault(); els.dropzone.classList.add('is-drag');
+}));
+['dragleave','drop'].forEach((ev) => els.dropzone.addEventListener(ev, (e) => {
+  e.preventDefault(); els.dropzone.classList.remove('is-drag');
+}));
+els.dropzone.addEventListener('drop', (e) => {
+  const f = e.dataTransfer.files && e.dataTransfer.files[0];
+  if (f) handleFile(f);
+});
+window.addEventListener('paste', (e) => {
+  const items = e.clipboardData && e.clipboardData.items;
+  if (!items) return;
+  for (const it of items) {
+    if (it.type.startsWith('image/')) { handleFile(it.getAsFile()); break; }
+  }
+});
+
+els.modeBtns.forEach((btn) => {
+  btn.addEventListener('click', () => {
+    els.modeBtns.forEach((b) => b.classList.remove('is-active'));
+    btn.classList.add('is-active');
+    state.mode = btn.dataset.mode;
+    if (!els.result.hidden) runCutout();
+  });
+});
+
+els.swatchBtns.forEach((btn) => {
+  btn.addEventListener('click', () => {
+    els.swatchBtns.forEach((b) => b.classList.remove('is-active'));
+    btn.classList.add('is-active');
+    state.bg = btn.dataset.bg;
+    if (state.lastBlob) reComposite(state.lastBlob);
+  });
+});
+
+async function composite(fgBlob, bg) {
+  const fg = await loadImage(URL.createObjectURL(fgBlob));
+  const canvas = document.createElement('canvas');
+  canvas.width = fg.naturalWidth || fg.width;
+  canvas.height = fg.naturalHeight || fg.height;
+  const ctx = canvas.getContext('2d');
+  if (bg !== 'transparent') { ctx.fillStyle = bg; ctx.fillRect(0, 0, canvas.width, canvas.height); }
+  ctx.drawImage(fg, 0, 0);
+  return new Promise((resolve) => { canvas.toBlob((out) => resolve(out), 'image/png'); });
+}
+
+async function reComposite(blob) {
+  const out = await composite(blob, state.bg);
+  const url = URL.createObjectURL(out);
+  if (els.downloadBtn.dataset.url) URL.revokeObjectURL(els.downloadBtn.dataset.url);
+  els.resultImg.src = url;
+  els.downloadBtn.href = url;
+  els.downloadBtn.dataset.url = url;
+  els.result.hidden = false;
+}
+
+async function runCutout() {
+  if (!state.image || state.busy) return;
+  state.busy = true;
+  els.cutBtn.disabled = true;
+  els.progress.hidden = false;
+  els.progressBar.style.width = '0%';
+  els.progressText.textContent = '正在加载模型…';
+  try {
+    const blob = await removeBackground(state.objectUrl, {
+      model: state.mode === 'portrait' ? 'isnet_fp16' : 'isnet',
+      output: { format: 'image/png' },
+      progress: (key, current, total) => {
+        if (total) {
+          const pct = Math.min(100, Math.round((current / total) * 100));
+          els.progressBar.style.width = pct + '%';
+          els.progressText.textContent = `处理中 ${pct}%`;
+        } else {
+          els.progressText.textContent = '正在加载模型…';
+        }
+      },
+    });
+    state.lastBlob = blob;
+    await reComposite(blob);
+  } catch (e) {
+    alert('抠图失败：' + (e && e.message ? e.message : e));
+  } finally {
+    state.busy = false;
+    els.cutBtn.disabled = false;
+    els.progress.hidden = true;
+  }
+}
+
+els.cutBtn.addEventListener('click', runCutout);
+</script>
+</body>
+</html>
