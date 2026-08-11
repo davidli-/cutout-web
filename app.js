@@ -1,5 +1,5 @@
 // 版本号：每次更新代码时递增，方便确认线上是否生效
-const VERSION = '1.3.0';
+const VERSION = '1.3.1';
 
 const els = {
   dropzone: document.getElementById('dropzone'),
@@ -218,8 +218,10 @@ async function runMediaPipe() {
     clearIdle();
     els.progressText.textContent = '正在抠图…';
     const img = state.image;
-    const res = seg.segment(img, performance.now()); // IMAGE 模式同步返回
-    const mask = res.categoryMask; // {width, height, data: Uint8Array} 1=前景 0=背景
+    const res = seg.segment(img); // IMAGE 模式：同步返回，无需时间戳
+    const mask = res.categoryMask; // MPMask：width / height + getAsUint8Array()
+    if (!mask) throw new Error('人像分割未返回掩码，请改用通用模式或重试');
+    const maskData = mask.getAsUint8Array(); // Uint8Array：0=背景 1=前景
     const canvas = document.createElement('canvas');
     canvas.width = img.naturalWidth || img.width;
     canvas.height = img.naturalHeight || img.height;
@@ -230,7 +232,7 @@ async function runMediaPipe() {
       for (let x = 0; x < canvas.width; x++) {
         const mx = (x * mask.width / canvas.width) | 0;
         const my = (y * mask.height / canvas.height) | 0;
-        out.data[(y * canvas.width + x) * 4 + 3] = mask.data[my * mask.width + mx] === 1 ? 255 : 0;
+        out.data[(y * canvas.width + x) * 4 + 3] = maskData[my * mask.width + mx] === 1 ? 255 : 0;
       }
     }
     ctx.putImageData(out, 0, 0);
