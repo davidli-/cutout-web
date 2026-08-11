@@ -1,5 +1,5 @@
 // 版本号：每次更新代码时递增，方便确认线上是否生效
-const VERSION = '1.3.1';
+const VERSION = '1.3.2';
 
 const els = {
   dropzone: document.getElementById('dropzone'),
@@ -76,7 +76,8 @@ els.modeBtns.forEach((btn) => {
     els.modeBtns.forEach((b) => b.classList.remove('is-active'));
     btn.classList.add('is-active');
     state.mode = btn.dataset.mode;
-    if (!els.result.hidden) runCutout();
+    // 切换模式只改变选择，不自动抠图；并清掉上一次模式的成品，避免显示错模式的旧图
+    hideResult();
   });
 });
 
@@ -186,7 +187,7 @@ async function getSegmenter() {
   const opts = {
     baseOptions: {
       modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite',
-      delegate: 'GPU',
+      delegate: 'CPU',
     },
     runningMode: 'IMAGE',
     outputCategoryMask: true,
@@ -195,8 +196,8 @@ async function getSegmenter() {
   try {
     mpSegmenter = await ImageSegmenter.createFromOptions(resolver, opts);
   } catch (e) {
-    // 老设备 / Safari 不支持 GPU delegate 时降级到 CPU
-    opts.baseOptions.delegate = 'CPU';
+    // 个别环境 CPU 不可用时再降级到 GPU
+    opts.baseOptions.delegate = 'GPU';
     mpSegmenter = await ImageSegmenter.createFromOptions(resolver, opts);
   }
   return mpSegmenter;
@@ -216,9 +217,11 @@ async function runMediaPipe() {
     const seg = await getSegmenter();
     sawProgress = true;
     clearIdle();
+    els.progressBar.style.width = '35%';
+    els.progressArrow.style.left = '35%';
     els.progressText.textContent = '正在抠图…';
     const img = state.image;
-    const res = seg.segment(img); // IMAGE 模式：同步返回，无需时间戳
+    const res = seg.segment(img); // IMAGE 模式：同步返回
     const mask = res.categoryMask; // MPMask：width / height + getAsUint8Array()
     if (!mask) throw new Error('人像分割未返回掩码，请改用通用模式或重试');
     const maskData = mask.getAsUint8Array(); // Uint8Array：0=背景 1=前景
@@ -228,14 +231,23 @@ async function runMediaPipe() {
     const ctx = canvas.getContext('2d');
     ctx.drawImage(img, 0, 0);
     const out = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    let fgCount = 0;
     for (let y = 0; y < canvas.height; y++) {
       for (let x = 0; x < canvas.width; x++) {
         const mx = (x * mask.width / canvas.width) | 0;
         const my = (y * mask.height / canvas.height) | 0;
-        out.data[(y * canvas.width + x) * 4 + 3] = maskData[my * mask.width + mx] === 1 ? 255 : 0;
+        const isFg = maskData[my * mask.width + mx] > 0; // 前景（人像）= 1
+        if (isFg) fgCount++;
+        out.data[(y * canvas.width + x) * 4 + 3] = isFg ? 255 : 0;
       }
     }
+    if (fgCount === 0) {
+      throw new Error('未检测到人像，请换一张含人物主体的照片，或改用「通用抠图」');
+    }
     ctx.putImageData(out, 0, 0);
+    els.progressBar.style.width = '90%';
+    els.progressArrow.style.left = '90%';
+    els.progressText.textContent = '正在合成…';
     const blob = await new Promise((r) => canvas.toBlob(r, 'image/png'));
     els.progressBar.style.width = '100%';
     els.progressArrow.style.left = '100%';
