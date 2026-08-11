@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- cutout 在线抠图 · 版本 v1.1.2 · 更新：进度条等宽按钮 + 箭头跟随移动提示 -->
+<!-- cutout 在线抠图 · 版本 v1.1.3 · 更新：文案固定居中 + 箭头钳制范围 + 推理中提示 -->
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8" />
@@ -50,12 +50,11 @@ body {
 .btn--primary:hover:not(:disabled) { background: var(--primary-d); }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
 #cutBtn { width: 100%; margin-top: 4px; }
-.progress { margin-top: 16px; position: relative; padding-bottom: 40px; }
+.progress { margin-top: 16px; position: relative; padding-bottom: 6px; }
 .progress__track { width: 100%; height: 8px; background: #eef0f3; border-radius: 99px; overflow: hidden; }
 .progress__bar { height: 100%; width: 0%; background: var(--primary); transition: width .2s; }
-.progress__cursor { position: absolute; top: 14px; left: 0%; transform: translateX(-50%); transition: left .2s; display: flex; flex-direction: column; align-items: center; pointer-events: none; will-change: left; }
-.progress__arrow { width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 7px solid var(--primary); }
-.progress__text { margin-top: 3px; font-size: 13px; color: var(--muted); white-space: nowrap; }
+.progress__arrow { position: absolute; top: 11px; left: 0%; transform: translateX(-50%); transition: left .2s; width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 7px solid var(--primary); will-change: left; }
+.progress__text { margin-top: 16px; font-size: 13px; color: var(--muted); text-align: center; white-space: nowrap; }
 .result { margin-top: 24px; text-align: center; }
 .result__stage {
   background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; display: inline-block; max-width: 100%;
@@ -104,10 +103,8 @@ body {
     <button id="cutBtn" class="btn btn--primary" type="button" disabled>开始抠图</button>
     <div class="progress" id="progress" hidden>
       <div class="progress__track"><div id="progressBar" class="progress__bar"></div></div>
-      <div class="progress__cursor" id="progressCursor">
-        <div class="progress__arrow"></div>
-        <span id="progressText" class="progress__text">准备中…</span>
-      </div>
+      <div class="progress__arrow" id="progressArrow"></div>
+      <div class="progress__text" id="progressText">正在准备模型…</div>
     </div>
   </section>
   <section class="result" id="result" hidden>
@@ -120,7 +117,7 @@ body {
 import { removeBackground } from 'https://esm.sh/@imgly/background-removal@1.7.0';
 
 // 版本号：每次更新代码时递增，方便确认线上是否生效
-const VERSION = '1.1.2';
+const VERSION = '1.1.3';
 
 const els = {
   dropzone: document.getElementById('dropzone'),
@@ -128,7 +125,7 @@ const els = {
   cutBtn: document.getElementById('cutBtn'),
   progress: document.getElementById('progress'),
   progressBar: document.getElementById('progressBar'),
-  progressCursor: document.getElementById('progressCursor'),
+  progressArrow: document.getElementById('progressArrow'),
   progressText: document.getElementById('progressText'),
   result: document.getElementById('result'),
   resultImg: document.getElementById('resultImg'),
@@ -231,22 +228,31 @@ async function reComposite(blob) {
   els.result.hidden = false;
 }
 
+let idleTimer = null;
+function clearIdle() { if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; } }
+
 async function runCutout() {
   if (!state.image || state.busy) return;
   state.busy = true;
   els.cutBtn.disabled = true;
   els.progress.hidden = false;
   els.progressBar.style.width = '0%';
-  els.progressCursor.style.left = '0%';
+  els.progressArrow.style.left = '0%';
   els.progressText.textContent = '正在准备模型…';
   // 累计已下载的各模型资源字节，合并为一条连续进度条
   const track = { files: new Map(), order: [], prevPct: 0 };
+  let sawProgress = false;
+  // 若长时间无下载进度事件（模型已缓存、正在 CPU 推理），提示“正在抠图…”，避免看起来卡住
+  clearIdle();
+  idleTimer = setTimeout(() => { if (!sawProgress) els.progressText.textContent = '正在抠图…'; }, 2000);
   try {
     const blob = await removeBackground(state.objectUrl, {
       model: state.mode === 'portrait' ? 'isnet_fp16' : 'isnet',
       output: { format: 'image/png' },
       progress: (key, current, total) => {
-        if (!total) { els.progressText.textContent = '正在准备模型…'; return; }
+        if (!total) return; // 准备阶段，保持当前文案
+        sawProgress = true;
+        clearIdle();
         if (!track.files.has(key)) { track.files.set(key, { current: 0, total: 0 }); track.order.push(key); }
         const rec = track.files.get(key);
         rec.current = current; rec.total = total;
@@ -258,19 +264,23 @@ async function runCutout() {
         track.prevPct = pct;
         const shown = Math.round(pct);
         els.progressBar.style.width = pct + '%';
-        // 箭头与提示文案跟随进度移动（钳在 6%~94% 避免文字溢出边界）
-        els.progressCursor.style.left = Math.max(6, Math.min(94, shown)) + '%';
+        // 箭头随真实进度移动，钳在 3%~97% 保证不超出进度条左右边界
+        els.progressArrow.style.left = Math.max(3, Math.min(97, shown)) + '%';
         const idx = track.order.indexOf(key) + 1;
-        els.progressText.textContent = `下载模型第 ${idx} 个文件 · ${shown}%`;
+        els.progressText.textContent = shown >= 99 ? '正在抠图…' : `下载模型第 ${idx} 个文件 · ${shown}%`;
       },
     });
+    clearIdle();
     els.progressBar.style.width = '100%';
+    els.progressArrow.style.left = '100%';
     els.progressText.textContent = '处理完成';
     state.lastBlob = blob;
     await reComposite(blob);
   } catch (e) {
+    clearIdle();
     alert('抠图失败：' + (e && e.message ? e.message : e));
   } finally {
+    clearIdle();
     state.busy = false;
     els.cutBtn.disabled = false;
     els.progress.hidden = true;
