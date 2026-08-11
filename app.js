@@ -1,5 +1,5 @@
 // 版本号：每次更新代码时递增，方便确认线上是否生效
-const VERSION = '1.3.4';
+const VERSION = '1.3.5';
 
 const els = {
   dropzone: document.getElementById('dropzone'),
