@@ -79,7 +79,7 @@ body {
 .dropzone__hint { font-size: 14px; color: var(--muted-2); }
 
 /* 参数配置区 */
-.options { display: grid; grid-template-columns: 34% 66%; gap: 24px; align-items: start; margin: 20px 0; }
+.options { display: grid; grid-template-columns: 36% 64%; gap: 28px; align-items: start; margin: 20px 0; }
 .options__group { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
 .options__label { font-size: 14px; font-weight: 600; color: var(--label); white-space: nowrap; }
 
@@ -113,12 +113,14 @@ body {
 }
 
 /* 背景色板 */
-.swatches { display: grid; grid-template-columns: repeat(9, auto); gap: 6px; }
+.swatches { display: grid; grid-template-columns: repeat(9, 1fr); gap: 10px; }
 .swatch-item { display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .swatch__label { font-size: 11px; color: #687386; line-height: 1; }
 .swatch.is-active + .swatch__label { color: var(--gold); font-weight: 600; }
 .swatch {
   position: relative;
+  display: flex; align-items: center; justify-content: center;
+  width: 100%;
   padding: 4px;
   border-radius: var(--radius-sm);
   border: 2px solid transparent;
@@ -138,7 +140,7 @@ body {
 .swatch.is-active { border-color: var(--gold); }
 .swatch__fill {
   display: block;
-  width: 42px; height: 42px;
+  width: 48px; height: 48px;
   border-radius: 3px;
   background: #fff;
   pointer-events: none;
@@ -266,11 +268,12 @@ body {
   .options { grid-template-columns: 1fr; gap: 16px; }
   .seg { grid-template-columns: 1fr 1fr; }
   .seg__btn { height: 48px; justify-content: center; }
-  .swatches { grid-template-columns: repeat(5, auto); gap: 8px; }
-  .swatch__fill { width: 40px; height: 40px; }
   .btn--primary { height: 56px; }
 }
 @media (max-width: 1023px) {
   .options { grid-template-columns: 1fr; }
   .result { grid-template-columns: 1fr; }
+}
+@media (max-width: 639px) {
+  .swatches { grid-template-columns: repeat(5, 1fr); gap: 8px; }
 }
