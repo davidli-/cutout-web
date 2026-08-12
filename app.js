@@ -1,15 +1,21 @@
 // 版本号：每次更新代码时递增，方便确认线上是否生效
-const VERSION = '1.4.9';
-let customColor = '#ff7a45'; // 自定义背景色，初始同 HTML 取色笔配色
+const VERSION = '1.5.0';
+let customColor = '#d3b06c'; // 自定义背景色，初始同 Manus 设计（HTML 取色笔同步）
 
 const els = {
   dropzone: document.getElementById('dropzone'),
   fileInput: document.getElementById('fileInput'),
+  filePill: document.getElementById('filePill'),
+  fileName: document.getElementById('fileName'),
   cutBtn: document.getElementById('cutBtn'),
+  cutBtnText: document.getElementById('cutBtnText'),
+  cutBtnSpark: document.querySelector('.btn__ic--spark'),
+  cutBtnSpin: document.querySelector('.btn__ic--spin'),
   progress: document.getElementById('progress'),
   progressBar: document.getElementById('progressBar'),
   progressText: document.getElementById('progressText'),
   result: document.getElementById('result'),
+  bgType: document.getElementById('bgType'),
   origImg: document.getElementById('origImg'),
   resultImg: document.getElementById('resultImg'),
   downloadBtn: document.getElementById('downloadBtn'),
@@ -18,7 +24,7 @@ const els = {
   swatchBtns: document.querySelectorAll('.swatch'),
 };
 
-const state = { image: null, objectUrl: null, mode: 'general', bg: 'transparent', lastBlob: null, busy: false };
+const state = { image: null, objectUrl: null, mode: 'general', bg: 'transparent', bgLabel: '透明背景', lastBlob: null, busy: false };
 
 // 在页脚显示版本号
 document.getElementById('ver').textContent = '版本 ' + VERSION;
@@ -34,13 +40,13 @@ function loadImage(src) {
 
 async function handleFile(file) {
   if (!file || !file.type.startsWith('image/')) { alert('请选择图片文件'); return; }
+  if (file.size > 10 * 1024 * 1024) { alert('图片大小不能超过 10MB'); return; }
   if (state.objectUrl) URL.revokeObjectURL(state.objectUrl);
   state.objectUrl = URL.createObjectURL(file);
   try {
     state.image = await loadImage(state.objectUrl);
-    els.dropzone.classList.add('is-loaded');
-    els.dropzone.querySelector('.dropzone__title').textContent = file.name;
-    els.dropzone.querySelector('.dropzone__hint').textContent = '点击或拖拽可更换图片';
+    els.fileName.textContent = file.name;
+    els.filePill.classList.add('is-visible');
     els.origImg.src = state.objectUrl;
     els.cutBtn.disabled = false;
     hideResult();
@@ -93,6 +99,7 @@ els.swatchBtns.forEach((btn) => {
     btn.setAttribute('aria-checked', 'true');
     if (bg === 'custom') state.bg = customColor;
     else state.bg = bg;
+    state.bgLabel = (btn.getAttribute('title') || '自定义') + '背景';
     if (state.lastBlob) reComposite(state.lastBlob);
   };
   btn.addEventListener('click', activate);
@@ -100,12 +107,11 @@ els.swatchBtns.forEach((btn) => {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); }
   });
 });
-// 自定义取色变化时：更新背景色、标记自定义色块底色、实时合成
+// 自定义取色变化时：更新背景色并实时合成（色块保持渐变+滴管，与 Manus 设计一致）
 els.customColorInput.addEventListener('input', (e) => {
   customColor = e.target.value;
-  const customBtn = document.querySelector('.swatch--custom');
-  if (customBtn) { customBtn.classList.add('has-color'); customBtn.style.setProperty('--custom-color', customColor); }
   state.bg = customColor;
+  state.bgLabel = '自定义背景';
   if (state.lastBlob) reComposite(state.lastBlob);
 });
 
@@ -115,16 +121,19 @@ async function composite(fgBlob, bg) {
   canvas.width = fg.naturalWidth || fg.width;
   canvas.height = fg.naturalHeight || fg.height;
   const ctx = canvas.getContext('2d');
+  const isTransparent = bg === 'transparent';
   if (bg === 'gradient') {
     const g = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-    g.addColorStop(0, '#ff7a45'); g.addColorStop(0.35, '#ffcc00');
-    g.addColorStop(0.65, '#22b35e'); g.addColorStop(1, '#2878F0');
+    g.addColorStop(0, '#f6b6c9'); g.addColorStop(0.48, '#b7b6ff'); g.addColorStop(1, '#93d8e8');
     ctx.fillStyle = g; ctx.fillRect(0, 0, canvas.width, canvas.height);
-  } else if (bg !== 'transparent') {
+  } else if (!isTransparent) {
     ctx.fillStyle = bg; ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
   ctx.drawImage(fg, 0, 0);
-  return new Promise((resolve) => { canvas.toBlob((out) => resolve(out), 'image/png'); });
+  return new Promise((resolve) => {
+    // 透明背景输出 PNG，其余输出 JPEG（与 Manus 下载行为一致）
+    canvas.toBlob((out) => resolve(out), isTransparent ? 'image/png' : 'image/jpeg', isTransparent ? undefined : 0.94);
+  });
 }
 
 async function reComposite(blob) {
@@ -132,21 +141,33 @@ async function reComposite(blob) {
   const url = URL.createObjectURL(out);
   if (els.downloadBtn.dataset.url) URL.revokeObjectURL(els.downloadBtn.dataset.url);
   els.resultImg.src = url;
-  els.downloadBtn.dataset.url = url; // 由按钮点击时触发下载
+  els.downloadBtn.dataset.url = url;
+  els.downloadBtn.dataset.ext = state.bg === 'transparent' ? 'png' : 'jpg';
+  els.bgType.textContent = state.bgLabel;
   els.result.hidden = false;
 }
 
-// 下载按钮（<button>）点击：用临时 <a> 触发 PNG 下载
+// 下载按钮（<button>）点击：用临时 <a> 触发下载，文件名沿用源文件名
 els.downloadBtn.addEventListener('click', () => {
   const url = els.downloadBtn.dataset.url;
   if (!url) return;
+  const base = (els.fileName.textContent || 'cutout-result').replace(/\.[^/.]+$/, '');
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'cutout.png';
+  a.download = `${base}.${els.downloadBtn.dataset.ext || 'png'}`;
   document.body.appendChild(a);
   a.click();
   a.remove();
 });
+
+// 按钮忙碌态：切换图标与文案（Manus：Loader 旋转 + "正在抠图"）
+function setBusy(busy) {
+  state.busy = busy;
+  els.cutBtn.disabled = busy || !state.image;
+  els.cutBtnText.textContent = busy ? '正在抠图' : '开始抠图';
+  els.cutBtnSpark.hidden = busy;
+  els.cutBtnSpin.hidden = !busy;
+}
 
 let idleTimer = null;
 function clearIdle() { if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; } }
@@ -160,8 +181,7 @@ async function runCutout() {
 
 // 通用抠图：@imgly/background-removal（ONNX Runtime Web + WASM），首次使用时才拉取
 async function runImgly() {
-  state.busy = true;
-  els.cutBtn.disabled = true;
+  setBusy(true);
   els.progress.hidden = false;
   els.progressBar.style.width = '0%';
   els.progressText.textContent = '正在加载模型…';
@@ -202,8 +222,7 @@ async function runImgly() {
     alert('抠图失败：' + (e && e.message ? e.message : e));
   } finally {
     clearIdle();
-    state.busy = false;
-    els.cutBtn.disabled = false;
+    setBusy(false);
     els.progress.hidden = true;
   }
 }
@@ -238,8 +257,7 @@ async function getSegmenter() {
 }
 
 async function runMediaPipe() {
-  state.busy = true;
-  els.cutBtn.disabled = true;
+  setBusy(true);
   els.progress.hidden = false;
   els.progressBar.style.width = '0%';
   els.progressText.textContent = '正在加载人像模型…';
@@ -306,8 +324,7 @@ async function runMediaPipe() {
     alert('抠图失败：' + (e && e.message ? e.message : e));
   } finally {
     clearIdle();
-    state.busy = false;
-    els.cutBtn.disabled = false;
+    setBusy(false);
     els.progress.hidden = true;
   }
 }
