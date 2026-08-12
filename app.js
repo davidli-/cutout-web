@@ -1,5 +1,5 @@
 // 版本号：每次更新代码时递增，方便确认线上是否生效
-const VERSION = '1.4.0';
+const VERSION = '1.4.1';
 let customColor = '#ff7a45'; // 自定义背景色，初始同 HTML 取色笔配色
 
 const els = {
@@ -39,7 +39,8 @@ async function handleFile(file) {
   try {
     state.image = await loadImage(state.objectUrl);
     els.dropzone.classList.add('is-loaded');
-    els.dropzone.querySelector('.dropzone__title').textContent = '点击或拖拽图片到此处上传';
+    els.dropzone.querySelector('.dropzone__title').textContent = file.name;
+    els.dropzone.querySelector('.dropzone__hint').textContent = '点击或拖拽可更换图片';
     els.origImg.src = state.objectUrl;
     els.cutBtn.disabled = false;
     hideResult();
@@ -87,9 +88,6 @@ els.modeBtns.forEach((btn) => {
 els.swatchBtns.forEach((btn) => {
   btn.addEventListener('click', () => {
     const bg = btn.dataset.bg;
-    if (bg === 'custom') {
-      els.customColorInput.click(); // 打开系统取色器
-    }
     els.swatchBtns.forEach((b) => b.classList.remove('is-active'));
     btn.classList.add('is-active');
     if (bg === 'custom') state.bg = customColor;
