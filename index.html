@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- cutout 在线抠图 · 版本 v1.4.1 · 更新：修复虚线边框方向、上传文件名显示、模式与背景色板同排、按钮高度、自定义取色器定位 -->
+<!-- cutout 在线抠图 · 版本 v1.4.4 · 更新：虚线改用浏览器原生渲染（border-style:dashed），拐角自然连接不中断；上传区拖拽/hover改为香槟色实线；色块 padding 加大内外间距；参数区标签置顶对齐 -->
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8" />
@@ -49,44 +49,60 @@
         <span class="options__label">选择背景</span>
         <div class="swatches" role="radiogroup" aria-label="背景颜色">
           <div class="swatch-item">
-            <button type="button" class="swatch is-active" data-bg="transparent" role="radio" aria-checked="true" title="透明">
-              <span class="swatch__check"></span>
-            </button>
+            <div class="swatch is-active" data-bg="transparent" role="radio" aria-checked="true" tabindex="0" title="透明">
+              <span class="swatch__fill swatch__fill--transparent"></span>
+            </div>
             <span class="swatch__label">透明</span>
           </div>
           <div class="swatch-item">
-            <button type="button" class="swatch" data-bg="#ffffff" role="radio" aria-checked="false" title="白色"></button>
+            <div class="swatch" data-bg="#ffffff" role="radio" aria-checked="false" tabindex="0" title="白色">
+              <span class="swatch__fill" style="background:#ffffff;"></span>
+            </div>
             <span class="swatch__label">白色</span>
           </div>
           <div class="swatch-item">
-            <button type="button" class="swatch" data-bg="#000000" role="radio" aria-checked="false" title="黑色"></button>
+            <div class="swatch" data-bg="#000000" role="radio" aria-checked="false" tabindex="0" title="黑色">
+              <span class="swatch__fill" style="background:#000000;"></span>
+            </div>
             <span class="swatch__label">黑色</span>
           </div>
           <div class="swatch-item">
-            <button type="button" class="swatch" data-bg="#ff0000" role="radio" aria-checked="false" title="红色"></button>
+            <div class="swatch" data-bg="#ff0000" role="radio" aria-checked="false" tabindex="0" title="红色">
+              <span class="swatch__fill" style="background:#ff0000;"></span>
+            </div>
             <span class="swatch__label">红色</span>
           </div>
           <div class="swatch-item">
-            <button type="button" class="swatch" data-bg="#2878F0" role="radio" aria-checked="false" title="蓝色"></button>
+            <div class="swatch" data-bg="#2878F0" role="radio" aria-checked="false" tabindex="0" title="蓝色">
+              <span class="swatch__fill" style="background:#2878F0;"></span>
+            </div>
             <span class="swatch__label">蓝色</span>
           </div>
           <div class="swatch-item">
-            <button type="button" class="swatch" data-bg="#22b35e" role="radio" aria-checked="false" title="绿色"></button>
+            <div class="swatch" data-bg="#22b35e" role="radio" aria-checked="false" tabindex="0" title="绿色">
+              <span class="swatch__fill" style="background:#22b35e;"></span>
+            </div>
             <span class="swatch__label">绿色</span>
           </div>
           <div class="swatch-item">
-            <button type="button" class="swatch" data-bg="#ffcc00" role="radio" aria-checked="false" title="黄色"></button>
+            <div class="swatch" data-bg="#ffcc00" role="radio" aria-checked="false" tabindex="0" title="黄色">
+              <span class="swatch__fill" style="background:#ffcc00;"></span>
+            </div>
             <span class="swatch__label">黄色</span>
           </div>
           <div class="swatch-item">
-            <button type="button" class="swatch swatch--grad" data-bg="gradient" role="radio" aria-checked="false" title="渐变"></button>
+            <div class="swatch swatch--grad" data-bg="gradient" role="radio" aria-checked="false" tabindex="0" title="渐变">
+              <span class="swatch__fill swatch__fill--gradient"></span>
+            </div>
             <span class="swatch__label">渐变</span>
           </div>
           <div class="swatch-item">
-            <button type="button" class="swatch swatch--custom" data-bg="custom" role="radio" aria-checked="false" title="自定义">
-              <svg class="swatch__pip" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 5l-7 7"/><path d="M12 12L9 9l-5 7 3 3 7-5z"/></svg>
+            <div class="swatch swatch--custom" data-bg="custom" role="radio" aria-checked="false" tabindex="0" title="自定义">
               <input id="customColor" class="swatch__input" type="color" value="#ff7a45" />
-            </button>
+              <span class="swatch__fill swatch__fill--custom">
+                <svg class="swatch__pip" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 5l-7 7"/><path d="M12 12L9 9l-5 7 3 3 7-5z"/></svg>
+              </span>
+            </div>
             <span class="swatch__label">自定义</span>
           </div>
         </div>

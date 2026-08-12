@@ -1,5 +1,5 @@
 // 版本号：每次更新代码时递增，方便确认线上是否生效
-const VERSION = '1.4.2';
+const VERSION = '1.4.4';
 let customColor = '#ff7a45'; // 自定义背景色，初始同 HTML 取色笔配色
 
 const els = {
@@ -86,13 +86,18 @@ els.modeBtns.forEach((btn) => {
 });
 
 els.swatchBtns.forEach((btn) => {
-  btn.addEventListener('click', () => {
+  const activate = () => {
     const bg = btn.dataset.bg;
-    els.swatchBtns.forEach((b) => b.classList.remove('is-active'));
+    els.swatchBtns.forEach((b) => { b.classList.remove('is-active'); b.setAttribute('aria-checked', 'false'); });
     btn.classList.add('is-active');
+    btn.setAttribute('aria-checked', 'true');
     if (bg === 'custom') state.bg = customColor;
     else state.bg = bg;
     if (state.lastBlob) reComposite(state.lastBlob);
+  };
+  btn.addEventListener('click', activate);
+  btn.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); }
   });
 });
 // 自定义取色变化时：更新背景色、标记自定义色块底色、实时合成
