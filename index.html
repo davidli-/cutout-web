@@ -1,56 +1,101 @@
 <!doctype html>
-<!-- cutout 在线抠图 · 版本 v1.3.5 · 更新：模式按钮文案改为「高清通用 / 快速人像」，准确传达质量优先与速度优先 -->
+<!-- cutout 在线抠图 · 版本 v1.4.0 · 更新：UI 大版本，香槟金主题、5px 统一圆角、密集虚线边框、独立开口云朵上传图标、左右结果对比与隐私声明 -->
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>在线抠图 · 通用 / 人像</title>
+<title>在线抠图工具</title>
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 <main class="app">
   <header class="app__header">
-    <h1>在线抠图</h1>
-    <p class="app__sub">纯前端 AI 抠图 · 通用 / 人像 · 支持换背景与下载</p>
+    <h1 class="app__title">在线抠图工具</h1>
+    <p class="app__sub">上传图片，智能去除背景，支持自定义背景</p>
   </header>
+
   <section class="panel">
-    <div id="dropzone" class="dropzone" tabindex="0">
+    <!-- 上传卡片 -->
+    <label id="dropzone" class="dropzone" tabindex="0">
       <input id="fileInput" type="file" accept="image/*" hidden />
-      <div class="dropzone__inner">
-        <p class="dropzone__title">拖拽图片到此处，或点击选择</p>
-        <p class="dropzone__hint">也支持 Ctrl / ⌘ + V 直接粘贴截图</p>
-      </div>
-    </div>
+      <span class="dropzone__icon" aria-hidden="true">
+        <svg viewBox="0 0 64 64" width="56" height="56" fill="none" stroke="#C7A66A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 40a11 11 0 0 1 1.6-21.8A14 14 0 0 1 44 17.2 10 10 0 0 1 46 40" />
+          <path d="M32 50 V30" />
+          <path d="M24 38 L32 30 L40 38" />
+        </svg>
+      </span>
+      <span class="dropzone__title">点击或拖拽图片到此处上传</span>
+      <span class="dropzone__hint">支持 JPG、PNG、WebP 格式，最大 10MB</span>
+    </label>
+
+    <!-- 参数配置区 -->
     <div class="options">
       <div class="options__group">
-        <span class="options__label">模式</span>
+        <span class="options__label">抠图模式</span>
         <div class="seg" role="radiogroup" aria-label="抠图模式">
-          <button type="button" class="seg__btn is-active" data-mode="general">高清通用</button>
-          <button type="button" class="seg__btn" data-mode="portrait">快速人像</button>
+          <button type="button" class="seg__btn is-active" data-mode="general" role="radio" aria-checked="true">
+            <svg class="seg__ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/></svg>
+            <span>高清通用</span>
+          </button>
+          <button type="button" class="seg__btn" data-mode="portrait" role="radio" aria-checked="false">
+            <svg class="seg__ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+            <span>快速人像</span>
+          </button>
         </div>
       </div>
+
       <div class="options__group">
-        <span class="options__label">背景</span>
+        <span class="options__label">选择背景</span>
         <div class="swatches" role="radiogroup" aria-label="背景颜色">
-          <button type="button" class="swatch is-active" data-bg="transparent" title="透明">透明</button>
-          <button type="button" class="swatch" data-bg="#ffffff" style="--c:#ffffff" title="白色">白</button>
-          <button type="button" class="swatch" data-bg="#ff0000" style="--c:#ff0000" title="红色">红</button>
-          <button type="button" class="swatch" data-bg="#cccccc" style="--c:#cccccc" title="灰色">灰</button>
-          <button type="button" class="swatch" data-bg="#438edb" style="--c:#438edb" title="蓝色">蓝</button>
+          <button type="button" class="swatch is-active" data-bg="transparent" role="radio" aria-checked="true" title="透明">
+            <span class="swatch__check"></span>
+          </button>
+          <button type="button" class="swatch" data-bg="#ffffff" role="radio" aria-checked="false" title="白色"></button>
+          <button type="button" class="swatch" data-bg="#000000" role="radio" aria-checked="false" title="黑色"></button>
+          <button type="button" class="swatch" data-bg="#ff0000" role="radio" aria-checked="false" title="红色"></button>
+          <button type="button" class="swatch" data-bg="#2878F0" role="radio" aria-checked="false" title="蓝色"></button>
+          <button type="button" class="swatch" data-bg="#22b35e" role="radio" aria-checked="false" title="绿色"></button>
+          <button type="button" class="swatch" data-bg="#ffcc00" role="radio" aria-checked="false" title="黄色"></button>
+          <button type="button" class="swatch swatch--grad" data-bg="gradient" role="radio" aria-checked="false" title="渐变"></button>
+          <button type="button" class="swatch swatch--custom" data-bg="custom" role="radio" aria-checked="false" title="自定义">
+            <svg class="swatch__pip" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 5l-7 7"/><path d="M12 12L9 9l-5 7 3 3 7-5z"/></svg>
+            <input id="customColor" class="swatch__input" type="color" value="#ff7a45" hidden />
+          </button>
         </div>
       </div>
     </div>
-    <button id="cutBtn" class="btn btn--primary" type="button" disabled>开始抠图</button>
+
+    <!-- 开始抠图 -->
+    <button id="cutBtn" class="btn btn--primary" type="button" disabled>
+      <svg class="btn__ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9l-4.7 1.3L12 15l-1.8-4.7L5.5 9l4.7-1.3z"/><path d="M18 14l.9 2.3L21 17l-2.1.7L18 20l-.9-2.3L15 17l2.1-.7z"/></svg>
+      <span>开始抠图</span>
+    </button>
+
+    <!-- 进度反馈 -->
     <div class="progress" id="progress" hidden>
       <div class="progress__track"><div id="progressBar" class="progress__bar"></div></div>
-      <div class="progress__arrow" id="progressArrow"></div>
       <div class="progress__text" id="progressText">正在准备模型…</div>
     </div>
   </section>
+
+  <!-- 结果预览 -->
   <section class="result" id="result" hidden>
-    <div class="result__stage"><img id="resultImg" alt="抠图结果" /></div>
-    <div class="result__actions"><a id="downloadBtn" class="btn btn--primary" download="cutout.png">下载 PNG</a></div>
+    <div class="result__col">
+      <span class="result__tag result__tag--orig">原图</span>
+      <div class="result__stage result__stage--orig"><img id="origImg" alt="原图" /></div>
+    </div>
+    <div class="result__col">
+      <span class="result__tag result__tag--cut">抠图结果</span>
+      <div class="result__stage result__stage--cut">
+        <img id="resultImg" alt="抠图结果" />
+        <button id="downloadBtn" class="result__dl" type="button" title="下载 PNG" aria-label="下载 PNG">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M5 21h14"/></svg>
+        </button>
+      </div>
+    </div>
   </section>
+
   <footer class="app__footer"><p>图片全程在浏览器本地处理，不会上传到任何服务器。</p><p id="ver"></p></footer>
 </main>
 <script type="module" src="app.js"></script>

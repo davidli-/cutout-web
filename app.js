@@ -1,5 +1,6 @@
 // 版本号：每次更新代码时递增，方便确认线上是否生效
-const VERSION = '1.3.5';
+const VERSION = '1.4.0';
+let customColor = '#ff7a45'; // 自定义背景色，初始同 HTML 取色笔配色
 
 const els = {
   dropzone: document.getElementById('dropzone'),
@@ -7,11 +8,12 @@ const els = {
   cutBtn: document.getElementById('cutBtn'),
   progress: document.getElementById('progress'),
   progressBar: document.getElementById('progressBar'),
-  progressArrow: document.getElementById('progressArrow'),
   progressText: document.getElementById('progressText'),
   result: document.getElementById('result'),
+  origImg: document.getElementById('origImg'),
   resultImg: document.getElementById('resultImg'),
   downloadBtn: document.getElementById('downloadBtn'),
+  customColorInput: document.getElementById('customColor'),
   modeBtns: document.querySelectorAll('.seg__btn'),
   swatchBtns: document.querySelectorAll('.swatch'),
 };
@@ -37,7 +39,8 @@ async function handleFile(file) {
   try {
     state.image = await loadImage(state.objectUrl);
     els.dropzone.classList.add('is-loaded');
-    els.dropzone.querySelector('.dropzone__title').textContent = '已选择：' + file.name;
+    els.dropzone.querySelector('.dropzone__title').textContent = '点击或拖拽图片到此处上传';
+    els.origImg.src = state.objectUrl;
     els.cutBtn.disabled = false;
     hideResult();
   } catch (e) { alert(e.message); }
@@ -45,7 +48,7 @@ async function handleFile(file) {
 
 function hideResult() { els.result.hidden = true; }
 
-els.dropzone.addEventListener('click', () => els.fileInput.click());
+// dropzone 为 <label>，点击/回车由浏览器原生触发 fileInput；仅保留键盘可达
 els.dropzone.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); els.fileInput.click(); }
 });
@@ -83,11 +86,24 @@ els.modeBtns.forEach((btn) => {
 
 els.swatchBtns.forEach((btn) => {
   btn.addEventListener('click', () => {
+    const bg = btn.dataset.bg;
+    if (bg === 'custom') {
+      els.customColorInput.click(); // 打开系统取色器
+    }
     els.swatchBtns.forEach((b) => b.classList.remove('is-active'));
     btn.classList.add('is-active');
-    state.bg = btn.dataset.bg;
+    if (bg === 'custom') state.bg = customColor;
+    else state.bg = bg;
     if (state.lastBlob) reComposite(state.lastBlob);
   });
+});
+// 自定义取色变化时：更新背景色、标记自定义色块底色、实时合成
+els.customColorInput.addEventListener('input', (e) => {
+  customColor = e.target.value;
+  const customBtn = document.querySelector('.swatch--custom');
+  if (customBtn) { customBtn.classList.add('has-color'); customBtn.style.setProperty('--custom-color', customColor); }
+  state.bg = customColor;
+  if (state.lastBlob) reComposite(state.lastBlob);
 });
 
 async function composite(fgBlob, bg) {
@@ -96,7 +112,14 @@ async function composite(fgBlob, bg) {
   canvas.width = fg.naturalWidth || fg.width;
   canvas.height = fg.naturalHeight || fg.height;
   const ctx = canvas.getContext('2d');
-  if (bg !== 'transparent') { ctx.fillStyle = bg; ctx.fillRect(0, 0, canvas.width, canvas.height); }
+  if (bg === 'gradient') {
+    const g = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+    g.addColorStop(0, '#ff7a45'); g.addColorStop(0.35, '#ffcc00');
+    g.addColorStop(0.65, '#22b35e'); g.addColorStop(1, '#2878F0');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  } else if (bg !== 'transparent') {
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
   ctx.drawImage(fg, 0, 0);
   return new Promise((resolve) => { canvas.toBlob((out) => resolve(out), 'image/png'); });
 }
@@ -106,10 +129,21 @@ async function reComposite(blob) {
   const url = URL.createObjectURL(out);
   if (els.downloadBtn.dataset.url) URL.revokeObjectURL(els.downloadBtn.dataset.url);
   els.resultImg.src = url;
-  els.downloadBtn.href = url;
-  els.downloadBtn.dataset.url = url;
+  els.downloadBtn.dataset.url = url; // 由按钮点击时触发下载
   els.result.hidden = false;
 }
+
+// 下载按钮（<button>）点击：用临时 <a> 触发 PNG 下载
+els.downloadBtn.addEventListener('click', () => {
+  const url = els.downloadBtn.dataset.url;
+  if (!url) return;
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'cutout.png';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+});
 
 let idleTimer = null;
 function clearIdle() { if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; } }
@@ -127,8 +161,7 @@ async function runImgly() {
   els.cutBtn.disabled = true;
   els.progress.hidden = false;
   els.progressBar.style.width = '0%';
-  els.progressArrow.style.left = '0%';
-  els.progressText.textContent = '正在准备模型…';
+  els.progressText.textContent = '正在加载模型…';
   const track = { files: new Map(), order: [], prevPct: 0 };
   let sawProgress = false;
   clearIdle();
@@ -152,14 +185,12 @@ async function runImgly() {
         track.prevPct = pct;
         const shown = Math.round(pct);
         els.progressBar.style.width = pct + '%';
-        els.progressArrow.style.left = Math.max(3, Math.min(97, shown)) + '%';
         const idx = track.order.indexOf(key) + 1;
-        els.progressText.textContent = shown >= 99 ? '正在抠图…' : `下载模型第 ${idx} 个文件 · ${shown}%`;
+        els.progressText.textContent = shown >= 99 ? '正在抠图…' : `正在加载模型•第 ${idx} 个文件•${shown}%`;
       },
     });
     clearIdle();
     els.progressBar.style.width = '100%';
-    els.progressArrow.style.left = '100%';
     els.progressText.textContent = '处理完成';
     state.lastBlob = blob;
     await reComposite(blob);
@@ -208,7 +239,6 @@ async function runMediaPipe() {
   els.cutBtn.disabled = true;
   els.progress.hidden = false;
   els.progressBar.style.width = '0%';
-  els.progressArrow.style.left = '0%';
   els.progressText.textContent = '正在加载人像模型…';
   let sawProgress = false;
   clearIdle();
@@ -218,7 +248,6 @@ async function runMediaPipe() {
     sawProgress = true;
     clearIdle();
     els.progressBar.style.width = '35%';
-    els.progressArrow.style.left = '35%';
     els.progressText.textContent = '正在抠图…';
     const img = state.image;
     const res = seg.segment(img); // IMAGE 模式：同步返回
@@ -263,11 +292,9 @@ async function runMediaPipe() {
     }
     ctx.putImageData(out, 0, 0);
     els.progressBar.style.width = '90%';
-    els.progressArrow.style.left = '90%';
     els.progressText.textContent = '正在合成…';
     const blob = await new Promise((r) => canvas.toBlob(r, 'image/png'));
     els.progressBar.style.width = '100%';
-    els.progressArrow.style.left = '100%';
     els.progressText.textContent = '处理完成';
     state.lastBlob = blob;
     await reComposite(blob);
