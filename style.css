@@ -22,8 +22,8 @@
   --shadow-card: 0 20px 60px rgba(40,58,86,0.10);
   --shadow-btn: 0 8px 18px rgba(199,166,106,0.18);
   --dash: repeating-linear-gradient(90deg, var(--border) 0 5px, transparent 5px 13px);
-  --dash-svg: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Crect x='1' y='1' width='22' height='22' rx='5' ry='5' fill='none' stroke='%23CBD5E1' stroke-width='2' stroke-dasharray='5 8'/%3E%3C/svg%3E");
-  --dash-svg-gold: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Crect x='1' y='1' width='22' height='22' rx='5' ry='5' fill='none' stroke='%23C7A66A' stroke-width='2' stroke-dasharray='5 8'/%3E%3C/svg%3E");
+  --dash-svg: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Crect x='1' y='1' width='22' height='22' rx='5' ry='5' fill='none' stroke='%23CBD5E1' stroke-width='2' stroke-dasharray='10 10'/%3E%3C/svg%3E");
+  --dash-svg-gold: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Crect x='1' y='1' width='22' height='22' rx='5' ry='5' fill='none' stroke='%23C7A66A' stroke-width='2' stroke-dasharray='10 10'/%3E%3C/svg%3E");
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -74,15 +74,15 @@ body {
 .dropzone__hint { font-size: 14px; color: var(--muted-2); }
 
 /* 参数配置区 */
-.options { display: flex; flex-wrap: nowrap; align-items: center; gap: 20px; margin: 24px 0; }
-.options__group { display: flex; align-items: center; gap: 10px; }
+.options { display: flex; flex-wrap: nowrap; align-items: flex-start; gap: 12px; margin: 16px 0; }
+.options__group { display: flex; align-items: center; gap: 6px; }
 .options__label { font-size: 14px; font-weight: 600; color: var(--label); white-space: nowrap; }
 
 /* 抠图模式卡片 */
-.seg { display: flex; gap: 10px; }
+.seg { display: flex; gap: 6px; }
 .seg__btn {
   display: inline-flex; align-items: center; gap: 6px;
-  height: 40px; padding: 0 14px;
+  height: 40px; padding: 0 10px;
   border: 2px solid transparent;
   border-image: var(--dash-svg) 7 / 2px round;
   border-radius: var(--radius-sm);
@@ -103,7 +103,9 @@ body {
 }
 
 /* 背景色板 */
-.swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+.swatches { display: flex; flex-wrap: wrap; gap: 4px; }
+.swatch-item { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.swatch__label { font-size: 12px; color: var(--muted-2); line-height: 1; }
 .swatch {
   position: relative;
   width: 38px; height: 38px;
