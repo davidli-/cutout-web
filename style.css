@@ -86,7 +86,8 @@ body {
 /* 抠图模式卡片 */
 .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .seg__btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  width: 100%;
   height: 56px; padding: 0 12px;
   border: 2px solid transparent;
   border-radius: var(--radius-sm);
@@ -120,7 +121,6 @@ body {
 .swatch {
   position: relative;
   display: flex; align-items: center; justify-content: center;
-  width: 100%;
   padding: 4px;
   border-radius: var(--radius-sm);
   border: 2px solid transparent;
@@ -140,7 +140,7 @@ body {
 .swatch.is-active { border-color: var(--gold); }
 .swatch__fill {
   display: block;
-  width: 48px; height: 48px;
+  width: 42px; height: 42px;
   border-radius: 3px;
   background: #fff;
   pointer-events: none;
