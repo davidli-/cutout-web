@@ -1,5 +1,5 @@
 // 版本号：每次更新代码时递增，方便确认线上是否生效
-const VERSION = '1.5.0';
+const VERSION = '1.6.0';
 let customColor = '#d3b06c'; // 自定义背景色，初始同 Manus 设计（HTML 取色笔同步）
 
 const els = {
@@ -49,6 +49,8 @@ async function handleFile(file) {
     els.filePill.classList.add('is-visible');
     els.origImg.src = state.objectUrl;
     els.cutBtn.disabled = false;
+    els.progressBar.style.width = '0%';
+    els.progressText.textContent = '请上传图片后开始本地抠图';
     hideResult();
   } catch (e) { alert(e.message); }
 }
@@ -160,13 +162,19 @@ els.downloadBtn.addEventListener('click', () => {
   a.remove();
 });
 
-// 按钮忙碌态：切换图标与文案（Manus：Loader 旋转 + "正在抠图"）
+// 按钮忙碌态：busy 时文案变为「正在抠图」、菱形图标切换为旋转圈圈、按钮禁用（与 Manus 一致）
+// 注意：SVG 元素不认 HTMLElement.hidden property，必须用 setAttribute/removeAttribute 才能稳定隐藏。
 function setBusy(busy) {
   state.busy = busy;
   els.cutBtn.disabled = busy || !state.image;
   els.cutBtnText.textContent = busy ? '正在抠图' : '开始抠图';
-  els.cutBtnSpark.hidden = busy;
-  els.cutBtnSpin.hidden = !busy;
+  if (busy) {
+    els.cutBtnSpark.setAttribute('hidden', '');
+    els.cutBtnSpin.removeAttribute('hidden');
+  } else {
+    els.cutBtnSpark.removeAttribute('hidden');
+    els.cutBtnSpin.setAttribute('hidden', '');
+  }
 }
 
 let idleTimer = null;
@@ -182,7 +190,6 @@ async function runCutout() {
 // 通用抠图：@imgly/background-removal（ONNX Runtime Web + WASM），首次使用时才拉取
 async function runImgly() {
   setBusy(true);
-  els.progress.hidden = false;
   els.progressBar.style.width = '0%';
   els.progressText.textContent = '正在加载模型…';
   const track = { files: new Map(), order: [], prevPct: 0 };
@@ -208,22 +215,23 @@ async function runImgly() {
         track.prevPct = pct;
         const shown = Math.round(pct);
         els.progressBar.style.width = pct + '%';
-        const idx = track.order.indexOf(key) + 1;
-        els.progressText.textContent = shown >= 99 ? '正在抠图…' : `正在加载模型•第 ${idx} 个文件•${shown}%`;
+        const label = key.startsWith('fetch:') ? '正在加载模型' : '正在处理';
+        els.progressText.textContent = `${label}•${key}•${shown}%`;
       },
     });
     clearIdle();
     els.progressBar.style.width = '100%';
-    els.progressText.textContent = '处理完成';
+    els.progressText.textContent = '抠图完成！下方预览~';
     state.lastBlob = blob;
     await reComposite(blob);
   } catch (e) {
     clearIdle();
     alert('抠图失败：' + (e && e.message ? e.message : e));
+    els.progressBar.style.width = '0%';
+    els.progressText.textContent = '请上传图片后开始本地抠图';
   } finally {
     clearIdle();
     setBusy(false);
-    els.progress.hidden = true;
   }
 }
 
@@ -258,7 +266,6 @@ async function getSegmenter() {
 
 async function runMediaPipe() {
   setBusy(true);
-  els.progress.hidden = false;
   els.progressBar.style.width = '0%';
   els.progressText.textContent = '正在加载人像模型…';
   let sawProgress = false;
@@ -316,16 +323,17 @@ async function runMediaPipe() {
     els.progressText.textContent = '正在合成…';
     const blob = await new Promise((r) => canvas.toBlob(r, 'image/png'));
     els.progressBar.style.width = '100%';
-    els.progressText.textContent = '处理完成';
+    els.progressText.textContent = '抠图完成！下方预览~';
     state.lastBlob = blob;
     await reComposite(blob);
   } catch (e) {
     clearIdle();
     alert('抠图失败：' + (e && e.message ? e.message : e));
+    els.progressBar.style.width = '0%';
+    els.progressText.textContent = '请上传图片后开始本地抠图';
   } finally {
     clearIdle();
     setBusy(false);
-    els.progress.hidden = true;
   }
 }
 

@@ -96,14 +96,14 @@ body {
 .dropzone__file span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* 参数配置区 */
-.options { display: grid; grid-template-columns: 36% 64%; gap: 28px; align-items: start; margin: 24px 0 28px; }
-.options__group { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
-.options__label { font-size: 14px; font-weight: 600; color: var(--label); white-space: nowrap; }
+.options { display: grid; grid-template-columns: 0.72fr 1.28fr; gap: 28px; align-items: start; margin: 24px 0 28px; }
+.options__group { display: flex; flex-direction: column; align-items: stretch; gap: 12px; }
+.options__label { font-size: 14px; font-weight: 600; color: var(--label); white-space: nowrap; align-self: flex-start; }
 
 /* 抠图模式卡片 */
-.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
 .seg__btn {
-  display: flex; align-items: center; justify-content: center; gap: 6px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
   width: 100%;
   height: 56px; padding: 0 12px;
   border: 2px solid transparent;
@@ -160,7 +160,7 @@ body {
 }
 .swatch__fill {
   display: block;
-  width: 36px; height: 36px;
+  width: 40px; height: 40px;
   border-radius: 3px;
   background: #fff;
   pointer-events: none;
@@ -203,9 +203,10 @@ body {
 .btn--primary:active:not(:disabled) { transform: scale(0.985); }
 .btn--primary:hover:not(:disabled) { background: var(--gold-hover); }
 .btn--primary:disabled { background: var(--gold-disabled); box-shadow: none; cursor: not-allowed; }
-.btn__ic { width: 20px; height: 20px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.btn__ic--spin { animation: spin 1s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
+.btn__ic { width: 20px; height: 20px; }
+.btn__ic--spark { fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.btn__ic--spin { fill: none; stroke: #fff; stroke-width: 2.4; stroke-linecap: round; animation: btn-spin 1s linear infinite; }
+@keyframes btn-spin { to { transform: rotate(360deg); } }
 
 /* 进度反馈 */
 .progress { margin-top: 20px; }
@@ -272,8 +273,7 @@ body {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
   color: var(--muted-2); font-size: 14px; margin-top: 24px;
 }
-.app__footer-main { display: flex; align-items: center; justify-content: center; gap: 8px; }
-.app__footer-main svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.app__footer-main { display: flex; align-items: center; justify-content: center; }
 .app__footer p { margin: 0; }
 
 /* 焦点可访问性 */
